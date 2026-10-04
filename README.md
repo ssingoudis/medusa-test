@@ -1,3 +1,5 @@
+> **Multi-Brand-Demo:** Dieses Repository ist eine angepasste Version des Starters mit vier Marken-Shops auf einem Backend. Einrichtung und Start stehen in [SETUP.md](./SETUP.md).
+
 <p align="center">
   <a href="https://www.medusajs.com">
   <picture>

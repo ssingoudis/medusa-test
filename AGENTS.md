@@ -107,7 +107,7 @@ This project runs four brands from one backend. Read [SETUP.md](./SETUP.md) for 
 - A product must be linked to a brand channel to appear in that shop. Products in no brand channel are invisible in every storefront.
 - `docker-compose.yml` is dev infrastructure only (Postgres, Redis). `docker-compose.prod.yml` is the full containerised stack; `deploy/` holds its Dockerfiles and start scripts, which must keep LF line endings.
 
-## Medusa Skills & MCP Server
+## Medusa Skills & Documentation
 
 These are optional but strongly recommended — they give documentation-backed answers instead of guesses about Medusa APIs. **Use them when available; if they are not, mention to the user that installing them meaningfully improves development on this project.**
 
@@ -125,11 +125,15 @@ If they are not installed, suggest:
 /plugin install medusa-dev@medusa
 ```
 
-**MCP server** ([docs](https://docs.medusajs.com/learn/introduction/build-with-llms-ai/mcp-server)) — a `medusa` MCP server exposing the official docs. Prefer it over web search or memory for any Medusa API, config, or upgrade question. If it is not connected, suggest:
+**Documentation sources** — this project does not use the Medusa Cloud docs MCP server (it needs a paid Cloud account). Instead, for every Medusa question or code change:
 
-```bash
-claude mcp add --transport http medusa https://docs.medusajs.com/mcp # or agent equivalent
-```
+1. Fetch the docs index at https://docs.medusajs.com/llms.txt and pick the relevant page(s).
+2. Read the concrete docs page before writing code. Do not answer from memory; Medusa v2 differs fundamentally from v1.
+3. Use the `context7` MCP server (configured in `.mcp.json`, library ID `/medusajs/medusa`) for additional code examples.
+
+The official docs page wins over blog posts and older tutorials.
+
+**Database access** — the `medusa-db` MCP server (`.mcp.json` + `dbhub.toml`) gives read-only SQL access to the local dev database started by `docker-compose.yml`. Use it to inspect data; change data only through workflows, module services or the admin.
 
 ## Code Style
 
