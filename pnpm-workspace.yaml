@@ -1,0 +1,23 @@
+packages:
+  - "apps/**"
+  - "!apps/backend/.medusa/**"
+
+# pnpm 11+
+allowBuilds:
+  "@medusajs/telemetry": true
+  "@swc/core": true
+  esbuild: true
+  msgpackr-extract: true
+  protobufjs: true
+  sharp: true
+  unrs-resolver: true
+
+# pnpm 10.x
+onlyBuiltDependencies:
+  - "@medusajs/telemetry"
+
+# Moved here from package.json: pnpm 11+ no longer reads the "pnpm" field there.
+overrides:
+  "@types/react": 19.0.5
+  "@types/react-dom": 19.0.5
+  tsconfig-paths: ^4.2.0

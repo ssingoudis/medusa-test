@@ -1,0 +1,196 @@
+# Full demo stack: Medusa backend + admin, four brand storefronts,
+# PostgreSQL and Redis. Everything runs in containers.
+#
+#   On a server with Coolify: use this file as the Docker Compose file and
+#   assign one domain per service (backend -> port 9000, storefronts -> 8000).
+#
+#   On any machine with Docker, without a proxy: combine it with
+#   docker-compose.prod.local.yml. See SETUP.md.
+#
+# No ports are published here on purpose. The proxy (Coolify) or the local
+# override decides how services are reached.
+name: medusa-demo
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: medusa
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+      POSTGRES_DB: medusa
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U medusa -d medusa"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  backend:
+    build:
+      context: .
+      dockerfile: deploy/backend.Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      # Use a password without special characters: it is part of this URL.
+      DATABASE_URL: postgres://medusa:${POSTGRES_PASSWORD:?}@postgres:5432/medusa?sslmode=disable
+      REDIS_URL: redis://redis:6379
+      CACHE_REDIS_URL: redis://redis:6379
+      LOCKING_REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:?}
+      COOKIE_SECRET: ${COOKIE_SECRET:?}
+      MEDUSA_WORKER_MODE: shared
+      DISABLE_MEDUSA_ADMIN: "false"
+      # Public URL of the backend, e.g. https://api.example.com
+      MEDUSA_BACKEND_URL: ${BACKEND_URL:?}
+      # Public URLs of the four shops, e.g. https://shop-a.example.com
+      STORE_CORS: ${STOREFRONT_URL_ALBRECHT:?},${STOREFRONT_URL_NORDKANT:?},${STOREFRONT_URL_FESTWERK:?},${STOREFRONT_URL_KONTOR9:?}
+      ADMIN_CORS: ${BACKEND_URL:?}
+      AUTH_CORS: ${BACKEND_URL:?},${STOREFRONT_URL_ALBRECHT:?},${STOREFRONT_URL_NORDKANT:?},${STOREFRONT_URL_FESTWERK:?},${STOREFRONT_URL_KONTOR9:?}
+      # Admin login created on first start.
+      ADMIN_EMAIL: ${ADMIN_EMAIL:?}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?}
+      # Demo catalogue: 4 brands (sales channels) with suits.
+      SEED_DEMO_BRANDS: ${SEED_DEMO_BRANDS:-true}
+      # Only "true" when the stack is served over plain http (local demo).
+      INSECURE_COOKIES: ${INSECURE_COOKIES:-false}
+      PUBLISHABLE_KEY_DIR: /shared/keys
+    volumes:
+      - backend_uploads:/app/apps/backend/.medusa/server/static
+      - shared_keys:/shared/keys
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:9000/health').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 300s
+
+  # One storefront per brand. All four use the same image; the publishable
+  # key of a brand decides which catalogue its shop shows. They start one
+  # after the other because each one builds its pages on first start.
+  storefront-albrecht:
+    build:
+      context: .
+      dockerfile: deploy/storefront.Dockerfile
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      BRAND_SLUG: albrecht
+      NEXT_PUBLIC_STORE_NAME: ${STORE_NAME_ALBRECHT:-Albrecht & Söhne}
+      NEXT_PUBLIC_STORE_TAGLINE: ${STORE_TAGLINE_ALBRECHT:-Klassische Herrenanzüge im Premiumsegment}
+      NEXT_PUBLIC_MEDUSA_BACKEND_URL: ${BACKEND_URL:?}
+      NEXT_PUBLIC_BASE_URL: ${STOREFRONT_URL_ALBRECHT:?}
+      NEXT_PUBLIC_DEFAULT_REGION: ${DEFAULT_REGION:-de}
+    volumes:
+      - shared_keys:/shared/keys:ro
+      - storefront_albrecht_build:/app/apps/storefront/.next
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:' + (process.env.PORT || 8000) + '/').then((r) => process.exit(r.status < 500 ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 10s
+      retries: 6
+      start_period: 900s
+
+  storefront-nordkant:
+    build:
+      context: .
+      dockerfile: deploy/storefront.Dockerfile
+    restart: unless-stopped
+    depends_on:
+      storefront-albrecht:
+        condition: service_healthy
+    environment:
+      BRAND_SLUG: nordkant
+      NEXT_PUBLIC_STORE_NAME: ${STORE_NAME_NORDKANT:-Nordkant}
+      NEXT_PUBLIC_STORE_TAGLINE: ${STORE_TAGLINE_NORDKANT:-Moderne Slim-Fit-Anzüge für Stadt und Büro}
+      NEXT_PUBLIC_MEDUSA_BACKEND_URL: ${BACKEND_URL:?}
+      NEXT_PUBLIC_BASE_URL: ${STOREFRONT_URL_NORDKANT:?}
+      NEXT_PUBLIC_DEFAULT_REGION: ${DEFAULT_REGION:-de}
+    volumes:
+      - shared_keys:/shared/keys:ro
+      - storefront_nordkant_build:/app/apps/storefront/.next
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:' + (process.env.PORT || 8000) + '/').then((r) => process.exit(r.status < 500 ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 10s
+      retries: 6
+      start_period: 900s
+
+  storefront-festwerk:
+    build:
+      context: .
+      dockerfile: deploy/storefront.Dockerfile
+    restart: unless-stopped
+    depends_on:
+      storefront-nordkant:
+        condition: service_healthy
+    environment:
+      BRAND_SLUG: festwerk
+      NEXT_PUBLIC_STORE_NAME: ${STORE_NAME_FESTWERK:-Festwerk}
+      NEXT_PUBLIC_STORE_TAGLINE: ${STORE_TAGLINE_FESTWERK:-Hochzeitsanzüge, Smokings und Abendmode}
+      NEXT_PUBLIC_MEDUSA_BACKEND_URL: ${BACKEND_URL:?}
+      NEXT_PUBLIC_BASE_URL: ${STOREFRONT_URL_FESTWERK:?}
+      NEXT_PUBLIC_DEFAULT_REGION: ${DEFAULT_REGION:-de}
+    volumes:
+      - shared_keys:/shared/keys:ro
+      - storefront_festwerk_build:/app/apps/storefront/.next
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:' + (process.env.PORT || 8000) + '/').then((r) => process.exit(r.status < 500 ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 10s
+      retries: 6
+      start_period: 900s
+
+  storefront-kontor9:
+    build:
+      context: .
+      dockerfile: deploy/storefront.Dockerfile
+    restart: unless-stopped
+    depends_on:
+      storefront-festwerk:
+        condition: service_healthy
+    environment:
+      BRAND_SLUG: kontor9
+      NEXT_PUBLIC_STORE_NAME: ${STORE_NAME_KONTOR9:-Kontor 9}
+      NEXT_PUBLIC_STORE_TAGLINE: ${STORE_TAGLINE_KONTOR9:-Business-Anzüge zum Einstiegspreis}
+      NEXT_PUBLIC_MEDUSA_BACKEND_URL: ${BACKEND_URL:?}
+      NEXT_PUBLIC_BASE_URL: ${STOREFRONT_URL_KONTOR9:?}
+      NEXT_PUBLIC_DEFAULT_REGION: ${DEFAULT_REGION:-de}
+    volumes:
+      - shared_keys:/shared/keys:ro
+      - storefront_kontor9_build:/app/apps/storefront/.next
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:' + (process.env.PORT || 8000) + '/').then((r) => process.exit(r.status < 500 ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 10s
+      retries: 6
+      start_period: 900s
+
+volumes:
+  postgres_data:
+  redis_data:
+  backend_uploads:
+  shared_keys:
+  storefront_albrecht_build:
+  storefront_nordkant_build:
+  storefront_festwerk_build:
+  storefront_kontor9_build:

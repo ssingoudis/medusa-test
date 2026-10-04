@@ -1,0 +1,15 @@
+**/node_modules
+**/.next
+**/.medusa
+**/.turbo
+**/.env
+**/.env.*
+!**/.env.template
+**/static
+**/uploads
+.git
+.vscode
+*.md
+docker-compose*.yml
+dbhub.toml
+.mcp.json

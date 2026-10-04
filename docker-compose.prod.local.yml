@@ -1,0 +1,37 @@
+# Override for running the demo stack on a machine without a reverse proxy:
+#
+#   docker compose -f docker-compose.prod.yml -f docker-compose.prod.local.yml \
+#     --env-file .env.prod up -d --build
+#
+# The storefronts share the network namespace of the backend container. That
+# way the backend URL http://localhost:9000 means the same thing inside the
+# storefront containers and in the browser. All ports are therefore published
+# on the backend service.
+services:
+  backend:
+    ports:
+      - "9000:9000"
+      - "8001:8001"
+      - "8002:8002"
+      - "8003:8003"
+      - "8004:8004"
+
+  storefront-albrecht:
+    network_mode: "service:backend"
+    environment:
+      PORT: "8001"
+
+  storefront-nordkant:
+    network_mode: "service:backend"
+    environment:
+      PORT: "8002"
+
+  storefront-festwerk:
+    network_mode: "service:backend"
+    environment:
+      PORT: "8003"
+
+  storefront-kontor9:
+    network_mode: "service:backend"
+    environment:
+      PORT: "8004"

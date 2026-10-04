@@ -1,0 +1,16 @@
+# DBHub MCP server config: read-only access to the local Medusa dev database.
+# Docs: https://dbhub.ai/config/toml
+
+[[sources]]
+id = "medusa"
+dsn = "postgres://medusa:medusa@localhost:5432/medusa-test?sslmode=disable"
+
+[[tools]]
+name = "execute_sql"
+source = "medusa"
+readonly = true
+max_rows = 500
+
+[[tools]]
+name = "search_objects"
+source = "medusa"
