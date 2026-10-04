@@ -8,6 +8,24 @@ Diese Anleitung beschreibt, wie das Projekt auf einem anderen Rechner oder Serve
 | [B. Coolify](#b-coolify) | Demo für den Kunden unter echten Domains | Repository verbinden, Variablen und Domains eintragen |
 | [C. Entwicklungsumgebung](#c-entwicklungsumgebung) | Am Code arbeiten, mit Hot-Reload | Node, pnpm und Docker nötig |
 
+## Kurzweg mit Claude Code
+
+Auf einem neuen Rechner reicht das hier. Von Hand nötig sind nur die Schritte, die ein Agent nicht selbst erledigen kann:
+
+1. **Docker Desktop installieren und starten.** Unter Windows gehört WSL2 dazu, meist mit einem Neustart. In den Docker-Einstellungen mindestens 6 GB Arbeitsspeicher zuteilen.
+2. **Git und Claude Code installieren.**
+3. **Repository klonen und den Ordner in Claude Code öffnen:**
+
+   ```bash
+   git clone https://github.com/ssingoudis/medusa-test.git
+   ```
+
+4. **Claude Code diesen Auftrag geben:**
+
+   > Starte die Demo nach dem Runbook in AGENTS.md. Admin-Login: meine-email@example.de, Passwort: mein-passwort.
+
+Claude Code legt dann die Konfiguration an, baut und startet alles, wartet auf die vier Shops und nennt am Ende die Adressen. Der erste Lauf dauert etwa 20 Minuten. Das Runbook steht in [AGENTS.md](AGENTS.md), die Schritte von Hand unter [Weg A](#a-demo-komplett-in-docker).
+
 ## Was hier läuft
 
 Ein Medusa-Backend (Version 2.21) verwaltet vier Marken. Jede Marke hat einen eigenen Shop.
@@ -57,7 +75,7 @@ Voraussetzung: Docker (Docker Desktop unter Windows und macOS) mit mindestens 6 
 **1. Projekt holen**
 
 ```bash
-git clone <repository-url> medusa-test
+git clone https://github.com/ssingoudis/medusa-test.git
 cd medusa-test
 ```
 
@@ -192,7 +210,7 @@ Voraussetzungen:
 **1. Projekt holen und Pakete installieren**
 
 ```bash
-git clone <repository-url> medusa-test
+git clone https://github.com/ssingoudis/medusa-test.git
 cd medusa-test
 pnpm install
 ```

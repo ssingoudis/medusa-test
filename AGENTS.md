@@ -107,6 +107,30 @@ This project runs four brands from one backend. Read [SETUP.md](./SETUP.md) for 
 - A product must be linked to a brand channel to appear in that shop. Products in no brand channel are invisible in every storefront.
 - `docker-compose.yml` is dev infrastructure only (Postgres, Redis). `docker-compose.prod.yml` is the full containerised stack; `deploy/` holds its Dockerfiles and start scripts, which must keep LF line endings.
 
+## Runbook: Start the Demo Stack
+
+Follow this when the user asks to set up, start or show the demo (SETUP.md, path A). It needs only Docker; Node and pnpm are not required. Run every command from the repository root.
+
+Below, `<compose>` stands for:
+
+```bash
+docker compose -f docker-compose.prod.yml -f docker-compose.prod.local.yml --env-file .env.prod
+```
+
+1. **Check prerequisites.** `docker info` must succeed and report at least 6 GB of memory. If Docker is missing or not running, stop and tell the user: installing Docker Desktop needs admin rights, a licence click and usually a reboot, so it cannot be done unattended. Ports 9000 and 8001-8004 must be free; if a dev server occupies 9000, ask before stopping it.
+2. **Create `.env.prod` if it does not exist.** Copy `.env.prod.example`. Fill `POSTGRES_PASSWORD`, `JWT_SECRET` and `COOKIE_SECRET` with separate random hex values (`openssl rand -hex 32`, or `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`). For `ADMIN_EMAIL` and `ADMIN_PASSWORD` use what the user gave you; if they gave nothing, generate a password and report both values at the end. Leave the URLs and `INSECURE_COOKIES=true` as they are for a local demo. Never overwrite an existing `.env.prod`: its database password must match the existing database volume.
+3. **Start.** Run `<compose> up -d --build` in the background. The first run takes about 20 minutes: about 5 for the images, 3 for the backend, then about 3 per storefront, one after the other. The command itself returns only when the whole chain is up. This is expected, not a hang.
+4. **Wait until all seven services are healthy.** Check with `<compose> ps`. Services: `postgres`, `redis`, `backend`, `storefront-albrecht`, `storefront-nordkant`, `storefront-festwerk`, `storefront-kontor9`. If one restarts or exits, read `<compose> logs <service>` before changing anything.
+5. **Verify.** `http://localhost:9000/health` returns `OK`, `http://localhost:9000/app` returns 200, and each of `http://localhost:8001/de` to `http://localhost:8004/de` returns 200 with the brand name in the page title.
+6. **Report** the five URLs and the admin login to the user.
+
+Known pitfalls:
+
+- A `Search index "product" has no active version yet` line in the backend log during the first start is harmless; the server builds the index right after.
+- In Git Bash on Windows, `docker exec <container> /some/path` gets its path rewritten. Prefix the command with `MSYS_NO_PATHCONV=1`.
+- The storefront listing is rendered in the browser from `/store/search`, so product names are not in the HTML of `/de/store`. Check product pages (`/de/products/<handle>`) or the search endpoint instead.
+- To start from scratch, run `<compose> down -v`. This deletes the database and uploads, so confirm with the user first.
+
 ## Medusa Skills & Documentation
 
 These are optional but strongly recommended — they give documentation-backed answers instead of guesses about Medusa APIs. **Use them when available; if they are not, mention to the user that installing them meaningfully improves development on this project.**
