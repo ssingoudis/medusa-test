@@ -143,9 +143,11 @@ Jeder Shop wartet auf seinen Schlüssel und auf das Backend, baut dann seine Sei
 
 Diese Variante nutzt dieselbe Compose-Datei, aber ohne die lokale Zusatzdatei. Coolify übernimmt Domains und HTTPS.
 
-Hinweis: Dieser Weg ist vorbereitet, aber noch nicht auf einem echten Coolify-Server erprobt. Lokal in Docker ist der Stack getestet.
+Erprobt am 2026-10-05 mit Coolify 4.0.0-beta.460 auf einem Hetzner-Server (4 vCPU, 8 GB RAM, Firewall nur 22/80/443). Der erste Deploy dauerte rund 20 Minuten. Die laufende Demo liegt unter den Adressen in [Aktueller Stand der Demo](#aktueller-stand-der-demo).
 
-Server: mindestens 4 vCPU und 8 GB RAM. Der Bau der Shop-Seiten braucht kurzzeitig viel Speicher.
+Server: mindestens 4 vCPU und 8 GB RAM. Der Bau der Shop-Seiten braucht kurzzeitig viel Speicher. Im Betrieb braucht der ganze Stack rund 1 GB.
+
+**0. Repository-Zugriff.** Coolify holt den Code per `git ls-remote` über https. Bei einem privaten Repository bricht der Deploy nach wenigen Sekunden mit `could not read Username for 'https://github.com'` ab. Entweder das Repository auf public stellen oder in Coolify eine GitHub-App als Source anlegen und ihr in GitHub Zugriff auf das Repository geben.
 
 **1. DNS.** Fünf Einträge auf die Server-IP zeigen lassen, zum Beispiel:
 
@@ -190,9 +192,32 @@ Im Endausbau bekommt jede Marke ihre eigene Domain. Für die Demo reichen Subdom
 
 Die Domains müssen exakt zu den URL-Variablen aus Schritt 3 passen. Sonst blockiert der Browser die Anfragen der Shops ans Backend (CORS).
 
-**5. Deployen.** Der erste Lauf dauert etwa 20 Minuten. Die Shops erscheinen nacheinander.
+**5. Deployen.** Der erste Lauf dauert etwa 20 Minuten. Die Shops erscheinen nacheinander. Coolify meldet den Deploy erst als abgeschlossen, wenn die ganze Kette gesund ist.
 
 Wird eine URL später geändert, bauen die betroffenen Shops beim nächsten Start ihre Seiten automatisch neu.
+
+### Einrichtung über die Coolify-API
+
+So wurde die Demo am 2026-10-05 eingerichtet, ohne Klicks in der Oberfläche. Nötig ist ein API-Token aus *Keys & Tokens* mit den Rechten `read`, `write` und `deploy`. Mit `read:sensitive` dazu lassen sich auch die Deployment-Logs per API lesen, sonst kommen sie leer zurück. Vorher unter *Settings* die API einschalten.
+
+1. `POST /api/v1/applications/public` mit `build_pack: "dockercompose"`, `docker_compose_location: "/docker-compose.prod.yml"`, `git_repository`, `git_branch`, `project_uuid`, `server_uuid`, `environment_name` und `instant_deploy: false`.
+2. `PATCH /api/v1/applications/{uuid}/envs/bulk` mit allen Variablen aus Schritt 3. Coolify legt zu jeder Variable automatisch eine Preview-Kopie an, das ist normal.
+3. `PATCH /api/v1/applications/{uuid}` mit `docker_compose_domains` als Liste `[{"name": "backend", "domain": "https://api.example.de:9000"}, ...]`. Der Aufruf verlangt zusätzlich `docker_compose_raw` als Base64. Dieses Feld nimmt nur ASCII an; die Umlaute in den Standard-Taglines der Compose-Datei müssen für den Aufruf ersetzt werden. Beim Deploy liest Coolify die echte Datei aus dem Repository, die Ersetzung hat also keine Folgen. Sicherheitshalber `STORE_NAME_*` und `STORE_TAGLINE_*` als Variablen mit den echten Namen setzen.
+4. `POST /api/v1/deploy?uuid={uuid}` startet den Deploy. Status über `GET /api/v1/deployments/{deployment_uuid}`.
+
+Das Token nach dem Deploy in Coolify löschen.
+
+### Aktueller Stand der Demo
+
+| Was | Wert |
+|---|---|
+| Coolify | https://admin.singovica.com, Projekt `medusa-demo`, Anwendung `kaiser-fashion-demo` |
+| Backend und Admin | https://kaiser-fashion.singovica.com, Dashboard unter `/app` |
+| Shops | https://shop1.kaiser-fashion.singovica.com bis `shop4` (Albrecht & Söhne, Nordkant, Festwerk, Kontor 9) |
+| DNS | fünf A-Records bei All-Inkl für `singovica.com` auf die Server-IP |
+| Admin-Login | in den Coolify-Variablen `ADMIN_EMAIL` und `ADMIN_PASSWORD`, nicht im Repository |
+
+Die Subdomains `shop1` bis `shop4` sind bewusst neutral gewählt. Ein Pfad-Präfix wie `example.de/kaiser-fashion/app` geht nicht: Medusa kennt keinen Basis-Pfad für API und Dashboard, und die vier Next.js-Shops müssten je mit eigenem `basePath` gebaut werden.
 
 ---
 

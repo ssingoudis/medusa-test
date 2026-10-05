@@ -131,6 +131,14 @@ Known pitfalls:
 - The storefront listing is rendered in the browser from `/store/search`, so product names are not in the HTML of `/de/store`. Check product pages (`/de/products/<handle>`) or the search endpoint instead.
 - To start from scratch, run `<compose> down -v`. This deletes the database and uploads, so confirm with the user first.
 
+## Deployed Demo (Coolify)
+
+The demo is live since 2026-10-05 on the user's Coolify instance (https://admin.singovica.com, project `medusa-demo`, application `kaiser-fashion-demo`). Backend and admin: https://kaiser-fashion.singovica.com (dashboard at `/app`); shops: `shop1` to `shop4`.kaiser-fashion.singovica.com. Details, the API-based setup and its pitfalls are in SETUP.md under "B. Coolify". The admin login lives in the Coolify environment variables, never in this repository.
+
+- A push to `main` does not deploy automatically unless auto-deploy is enabled in Coolify. Trigger a deploy via the Coolify UI or `POST /api/v1/deploy?uuid=<application uuid>`.
+- The repository must stay public, or Coolify needs a GitHub App source with access to it. A private repository fails at `git ls-remote` before any log output.
+- Deployment logs are only readable through the API with a token that has `read:sensitive`.
+
 ## Medusa Skills & Documentation
 
 These are optional but strongly recommended — they give documentation-backed answers instead of guesses about Medusa APIs. **Use them when available; if they are not, mention to the user that installing them meaningfully improves development on this project.**
